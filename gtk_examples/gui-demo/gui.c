@@ -1,0 +1,25 @@
+#include <gtk/gtk.h>
+#include "includes/prepares.h"
+#include "includes/bindings.h"
+
+int main(int argc, char *argv[]) {
+    gtk_init(&argc, &argv);
+
+    GtkWidget   *window  = prepareWindow("Collaborative editor");
+    GtkWidget   *vbox    = prepareVerticalBox(window);
+    GtkWidget   *toolbar = prepareToolbar();
+    GtkToolItem *exit    = prepareExitButton(toolbar);
+
+    gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 5);
+
+    GtkWidget     *textView  = prepareTextView(vbox);
+    GtkTextBuffer *buffer    = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+    GtkWidget     *statusbar = prepareStatusBar(vbox);
+
+    gtk_widget_show_all(window);
+    bindEventListeners(window, exit, buffer, statusbar);
+
+    gtk_main();
+
+    return 0;
+}
