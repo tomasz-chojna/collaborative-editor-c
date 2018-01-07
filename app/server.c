@@ -17,6 +17,9 @@
 #define HOST "127.0.0.1"
 #define PORT 8888
 #define MAX_CLIENTS 30
+#define LINES_LIMIT 10
+#define LINE_MAX_LENGTH 120
+
 
 struct CollaborativeEditorServer {
     struct sockaddr_in *address;
@@ -25,6 +28,7 @@ struct CollaborativeEditorServer {
     int num_of_client_sockets;
 
     int server_socket;
+    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 
     fd_set *read_fds;
 };
@@ -78,6 +82,13 @@ void listen_on_socket(int master_socket) {
     }
 }
 
+void print_text(struct CollaborativeEditorServer *server) {
+    printf("Current text:\n");
+    for (int i=0; i < LINES_LIMIT; i++) {
+        printf("[%d] %s\n", i, server->lines[i]);
+    }
+}
+
 int reset_fd_set(struct CollaborativeEditorServer *server) {
     //Clear the socket set. On each event loop iteration the fd_set has to
     // be destroyed and re-created
@@ -121,6 +132,27 @@ void add_new_socket_to_empty_client_slot(
         break;
     }
 }
+
+
+void broadcast_message(struct CollaborativeEditorServer *server, message_t message) {
+    int size = sizeof(message_t);
+    char* buffer = malloc(size);
+    memset(buffer, 0x00, size);
+    memcpy(buffer, &message, size);
+
+    for (int i=0; i < MAX_CLIENTS; i++) {
+        int client_socket = server->client_sockets[i];
+        if (client_socket == 0) {
+            continue;
+        }
+
+
+        send(client_socket, buffer, size, 0);
+    }
+
+    free(buffer);
+}
+
 
 void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     //If something happened on the server socket, its an incoming connection
@@ -171,7 +203,11 @@ void handle_client_socket_activity(
 
     printf("Received message from socket %d at index %d - [row: %d, type: %d, text: %s]\n",
             client_socket, socket_index, received_message.row, received_message.type, received_message.text);
-    // TODO: Broadcast the message to all clients
+
+    strcpy(server->lines[received_message.row], received_message.text);
+    // print_text(server);
+
+    broadcast_message(server, received_message);
 }
 
 
@@ -183,9 +219,6 @@ void handle_client_sockets_activity(struct CollaborativeEditorServer *server) {
 
 
 void event_loop(struct CollaborativeEditorServer *server) {
-    // 1K Buffer for incoming data
-    char buffer[1025];
-
     while(TRUE) {
         int highest_file_descriptor = reset_fd_set(server);
 
@@ -198,6 +231,13 @@ void event_loop(struct CollaborativeEditorServer *server) {
 
         handle_server_socket_activity(server);
         handle_client_sockets_activity(server);
+    }
+}
+
+void initialize_text_content(struct CollaborativeEditorServer *server) {
+    for (int i=0; i < LINES_LIMIT; i++) {
+        memset(server->lines[i], ' ', LINE_MAX_LENGTH + 1);
+        server->lines[i][LINE_MAX_LENGTH - 1] = '\0';
     }
 }
 
@@ -214,6 +254,8 @@ int main(int argc , char *argv[])
     server.address = &address;
     server.client_sockets = client_sockets;
     server.num_of_client_sockets = MAX_CLIENTS;
+
+    initialize_text_content(&server);
 
     bind_server_socket_to_port(server.server_socket, address);
     listen_on_socket(server.server_socket);
