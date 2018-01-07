@@ -17,7 +17,14 @@ int main(int argc, char *argv[]) {
     GtkWidget     *statusbar = prepareStatusBar(vbox);
 
     gtk_widget_show_all(window);
-    bindEventListeners(window, exit, buffer, statusbar);
+
+
+    struct data data;
+    data.statusbar = statusbar;
+    int serverSocket = connectToServer(SERVER_NAME, SERVER_PORT);
+    data.serverSocket = &serverSocket;
+
+    bindEventListeners(window, exit, buffer, &data);
 
     gtk_main();
 

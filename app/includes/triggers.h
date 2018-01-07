@@ -30,14 +30,14 @@ void update_statusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
     g_free(msg);
 }
 
-void sendMessageToServer(gchar *msg) {
-    socketClient(SERVER_NAME, SERVER_PORT, msg);
-}
+//void sendMessageToServer(gchar *msg) {
+//    socketClient(SERVER_NAME, SERVER_PORT, msg);
+//}
 
-void sendCursorStatusToServer(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
+void sendTypedCharacterToServer(GtkTextBuffer *buffer, const int * serverSocket) {
     gchar *msg = getCursorStatus(buffer);
 
-    sendMessageToServer(msg);
+    sendDataToServer(msg, *serverSocket);
 
     g_free(msg);
 }
