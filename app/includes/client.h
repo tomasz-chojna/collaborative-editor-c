@@ -30,17 +30,6 @@ void disconnectFromServer(int serverSocket);
 
 void sendDataToServer(const gchar *message, int serverSocket);
 
-void delay(int number_of_seconds) {
-    // Converting time into milli_seconds
-    int milli_seconds = 1000 * number_of_seconds;
-
-    // Stroing start time
-    clock_t start_time = clock();
-
-    // looping till required time is not acheived
-    while (clock() < start_time + milli_seconds);
-}
-
 /* Pass in 1 parameter which is either the */
 /* address or host name of the app, or  */
 /* set the app name in the #define      */
@@ -51,8 +40,8 @@ int connectToServer(char *server_name, int server_port) {
     /***********************************************************************/
     int                serverSocket = -1, rc, bytesReceived;
 //    char               buffer[BUFFER_LENGTH];
-    char               server_address[NETDB_MAX_HOST_NAME_LENGTH];
-    struct sockaddr_in serveraddr;
+    char               host[NETDB_MAX_HOST_NAME_LENGTH];
+    struct sockaddr_in serverAddress;
     struct hostent     *hostp;
 
     /********************************************************************/
@@ -72,13 +61,13 @@ int connectToServer(char *server_name, int server_port) {
     /* use the #define that is located at the top of this program.      */
     /********************************************************************/
 
-    strcpy(server_address, server_name);
+    strcpy(host, server_name);
 
-    memset(&serveraddr, 0, sizeof(serveraddr));
-    serveraddr.sin_family      = AF_INET;
-    serveraddr.sin_port        = htons(server_port);
-    serveraddr.sin_addr.s_addr = inet_addr(server_address);
-    if (serveraddr.sin_addr.s_addr == (unsigned long) INADDR_NONE) {
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family      = AF_INET;
+    serverAddress.sin_port        = htons(server_port);
+    serverAddress.sin_addr.s_addr = inet_addr(host);
+    if (serverAddress.sin_addr.s_addr == (unsigned long) INADDR_NONE) {
         /*****************************************************************/
         /* The app string that was passed into the inet_addr()        */
         /* function was not a dotted decimal IP address.  It must        */
@@ -87,21 +76,21 @@ int connectToServer(char *server_name, int server_port) {
         /* app.                                                       */
         /*****************************************************************/
 
-        hostp = gethostbyname(server_address);
+        hostp = gethostbyname(host);
         if (hostp == (struct hostent *) NULL) {
             printf("Host not found --> ");
             printf("h_errno = %d\n", h_errno);
             return -1;
         }
 
-        memcpy(&serveraddr.sin_addr, hostp->h_addr, sizeof(serveraddr.sin_addr));
+        memcpy(&serverAddress.sin_addr, hostp->h_addr, sizeof(serverAddress.sin_addr));
     }
 
     /********************************************************************/
     /* Use the connect() function to establish a connection to the      */
     /* app.                                                          */
     /********************************************************************/
-    if (connect(serverSocket, (struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) {
+    if (connect(serverSocket, (struct sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         perror("connect() failed");
         return -1;
     }
@@ -110,9 +99,6 @@ int connectToServer(char *server_name, int server_port) {
 }
 
 void sendDataToServer(const gchar *message, int serverSocket) {
-    /********************************************************************/
-    /* Send 250 bytes of a's to the app                              */
-    /********************************************************************/
 //        memset(buffer, 'a', sizeof(buffer));
     char buffer[BUFFER_LENGTH];
     strcpy(buffer, message);
@@ -123,9 +109,9 @@ void sendDataToServer(const gchar *message, int serverSocket) {
     }
 }
 
+/**
+ * Close socket descriptor
+ */
 void disconnectFromServer(int serverSocket) {
-    /***********************************************************************/
-    /* Close down any open socket descriptors                              */
-    /***********************************************************************/
     if (serverSocket != -1) close(serverSocket);
 }

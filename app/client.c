@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     gtk_widget_show_all(window);
 
 
-    struct data data;
+    struct BindingData data;
     data.statusbar = statusbar;
     int serverSocket = connectToServer(SERVER_NAME, SERVER_PORT);
     data.serverSocket = &serverSocket;
