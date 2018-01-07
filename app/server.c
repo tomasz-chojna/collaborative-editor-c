@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
+#include "includes/structs.h"
 
 #define TRUE   1
 #define FALSE  0
@@ -139,8 +140,6 @@ void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     add_new_socket_to_empty_client_slot(server, new_socket);
 
     // TODO: Send existing editor text
-    char* message = "My message";
-    send(new_socket , message , strlen(message) , 0);
 }
 
 void handle_client_socket_activity(
@@ -151,9 +150,12 @@ void handle_client_socket_activity(
         return;
     }
 
-    char buffer[1025];
+    int size = sizeof(message_t);
+    char* buffer = malloc(size);
+    memset(buffer, 0x00, size);
+
     int valread, addrlen;
-    if ((valread = read(client_socket, buffer, 1024)) == 0) {
+    if ((valread = read(client_socket, buffer, size)) == 0) {
         getpeername(client_socket, (struct sockaddr *) server->address, (socklen_t*)&addrlen);
         close(client_socket);
         server->client_sockets[socket_index] = 0;
@@ -163,20 +165,13 @@ void handle_client_socket_activity(
 
     //set the string terminating NULL byte on the end
     //of the data read
-    buffer[valread] = '\0';
+    message_t received_message;
+    memcpy(&received_message, buffer, size);
+    free(buffer);
 
-    char msg[1025];
-    // snprintf(msg, sizeof msg, "%s%d%s%s", "Received message from #", socket_index, ": ", buffer);
-    printf("Received message from socket %d at index %d: %s", client_socket, socket_index, buffer);
-
+    printf("Received message from socket %d at index %d - [row: %d, type: %d, text: %s]\n",
+            client_socket, socket_index, received_message.row, received_message.type, received_message.text);
     // TODO: Broadcast the message to all clients
-    // for (int j = 0; j < max_clients; j++) {
-    //     if (client_socket[j] > 0 && j != i) {
-    //
-    //         send(client_socket[j] , msg , strlen(msg) , 0 );
-    //     }
-    // }
-    // send(sd1 , buffer , strlen(buffer) , 0 );
 }
 
 
