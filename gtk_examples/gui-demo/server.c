@@ -209,7 +209,7 @@ int main(int argc , char *argv[])
                     }
                     // send(sd1 , buffer , strlen(buffer) , 0 );
 
-                    printf("[server-log] %s\n", msg);
+                    printf("[app-log] %s\n", msg);
                 }  
 
                 // printf("Client #%d sent something\n", i);
