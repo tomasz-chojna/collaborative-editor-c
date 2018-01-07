@@ -143,6 +143,50 @@ void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     send(new_socket , message , strlen(message) , 0);
 }
 
+void handle_client_socket_activity(
+    struct CollaborativeEditorServer *server, int socket_index
+) {
+    int client_socket = server->client_sockets[socket_index];
+    if (!FD_ISSET(client_socket, server->read_fds)) {
+        return;
+    }
+
+    char buffer[1025];
+    int valread, addrlen;
+    if ((valread = read(client_socket, buffer, 1024)) == 0) {
+        getpeername(client_socket, (struct sockaddr *) server->address, (socklen_t*)&addrlen);
+        close(client_socket);
+        server->client_sockets[socket_index] = 0;
+        printf("Disconnected socket %d at index %d\n", client_socket, socket_index);
+        return;
+    }
+
+    //set the string terminating NULL byte on the end
+    //of the data read
+    buffer[valread] = '\0';
+
+    char msg[1025];
+    // snprintf(msg, sizeof msg, "%s%d%s%s", "Received message from #", socket_index, ": ", buffer);
+    printf("Received message from socket %d at index %d: %s", client_socket, socket_index, buffer);
+
+    // TODO: Broadcast the message to all clients
+    // for (int j = 0; j < max_clients; j++) {
+    //     if (client_socket[j] > 0 && j != i) {
+    //
+    //         send(client_socket[j] , msg , strlen(msg) , 0 );
+    //     }
+    // }
+    // send(sd1 , buffer , strlen(buffer) , 0 );
+}
+
+
+void handle_client_sockets_activity(struct CollaborativeEditorServer *server) {
+    for (int i = 0; i < server->num_of_client_sockets; i++) {
+        handle_client_socket_activity(server, i);
+    }
+}
+
+
 void event_loop(struct CollaborativeEditorServer *server) {
     // 1K Buffer for incoming data
     char buffer[1025];
@@ -158,6 +202,7 @@ void event_loop(struct CollaborativeEditorServer *server) {
         }
 
         handle_server_socket_activity(server);
+        handle_client_sockets_activity(server);
     }
 }
 
@@ -179,58 +224,6 @@ int main(int argc , char *argv[])
     listen_on_socket(server.server_socket);
 
     event_loop(&server);
-
-    //
-    //     //else its some IO operation on some other socket
-    //     for (i = 0; i < max_clients; i++)
-    //     {
-    //         sd = client_socket[i];
-    //
-    //         if (FD_ISSET( sd , &readfds))
-    //         {
-    //             //Check if it was for closing , and also read the
-    //             //incoming message
-    //             if ((valread = read( sd , buffer, 1024)) == 0)
-    //             {
-    //                 //Somebody disconnected , get his details and print
-    //                 getpeername(sd , (struct sockaddr*)&address , \
-    //                     (socklen_t*)&addrlen);
-    //
-    //
-    //
-    //
-    //                 // printf("Host disconnected , ip %s , port %d \n", inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
-    //
-    //                 //Close the socket and mark as 0 in list for reuse
-    //                 close( sd );
-    //                 client_socket[i] = 0;
-    //             }
-    //
-    //             //Echo back the message that came in
-    //             else
-    //             {
-    //                 //set the string terminating NULL byte on the end
-    //                 //of the data read
-    //                 buffer[valread] = '\0';
-    //
-    //                 char msg[1025];
-    //                 snprintf(msg, sizeof msg, "%s%d%s%s", "Client #", i, ": ", buffer);
-    //
-    //                 for (int j = 0; j < max_clients; j++) {
-    //                     if (client_socket[j] > 0 && j != i) {
-    //
-    //                         send(client_socket[j] , msg , strlen(msg) , 0 );
-    //                     }
-    //                 }
-    //                 // send(sd1 , buffer , strlen(buffer) , 0 );
-    //
-    //                 printf("[app-log] %s\n", msg);
-    //             }
-    //
-    //             // printf("Client #%d sent something\n", i);
-    //         }
-    //     }
-    // }
 
     return 0;
 }
