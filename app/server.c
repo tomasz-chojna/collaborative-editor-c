@@ -10,13 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
-#include "includes/structs.h"
-
-#define TRUE   1
-#define FALSE  0
-#define HOST "127.0.0.1"
-#define PORT 8888
-#define MAX_CLIENTS 30
+#include "includes/common.h"
 
 struct CollaborativeEditorServer {
     struct sockaddr_in *address;

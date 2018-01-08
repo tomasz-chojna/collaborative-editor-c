@@ -1,35 +1,40 @@
 #include <gtk/gtk.h>
 #include "triggers.h"
 
-struct BindingData {
-    GtkWidget * statusbar;
-    int * serverSocket;
-};
+typedef struct BindingData {
+    GtkWidget *statusbar;
+    int       *serverSocket;
+} BindingData;
 
-void onExit(const GtkWidget *window, const GtkToolItem *exit, struct BindingData *data) {
+void onExit(const GtkWidget *window, const GtkToolItem *exit, BindingData *data) {
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(disconnectFromServer), data->serverSocket);
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
 }
 
-void onBufferChanged(GtkTextBuffer *buffer, struct BindingData *data) {
+void onBufferChanged(GtkTextBuffer *buffer, BindingData *data) {
     g_signal_connect(buffer, "changed", G_CALLBACK(update_statusbar), data->statusbar);
     g_signal_connect(buffer, "changed", G_CALLBACK(sendTypedCharacterToServer), data->serverSocket);
     g_signal_connect_object(buffer, "mark_set", G_CALLBACK(mark_set_callback), data->statusbar, 0);
 }
 
-void initStatusBar(GtkTextBuffer *buffer, GtkWidget *statusbar) {
-    update_statusbar(buffer, GTK_STATUSBAR(statusbar));
+void initStatusBar(GtkTextBuffer *buffer, BindingData *data) {
+    update_statusbar(buffer, GTK_STATUSBAR(data->statusbar));
 }
 
 void bindEventListeners(
-        const GtkWidget *window,
-        const GtkToolItem *exit,
+        GtkWidget *window,
+        GtkToolItem *exit,
         GtkTextBuffer *buffer,
-        struct BindingData * data
+        GtkWidget *statusbar,
+        int *serverSocket
 ) {
-    onExit(window, exit, data);
-    onBufferChanged(buffer, data);
+    BindingData data;
+    data.statusbar    = statusbar;
+    data.serverSocket = serverSocket;
 
-    initStatusBar(buffer, data->statusbar);
+    onExit(window, exit, &data);
+    onBufferChanged(buffer, &data);
+
+    initStatusBar(buffer, &data);
 }
