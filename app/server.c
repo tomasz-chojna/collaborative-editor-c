@@ -20,7 +20,6 @@
 #define LINES_LIMIT 10
 #define LINE_MAX_LENGTH 120
 
-
 struct CollaborativeEditorServer {
     struct sockaddr_in *address;
 

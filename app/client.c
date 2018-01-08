@@ -1,8 +1,11 @@
 #include <gtk/gtk.h>
+#include "includes/common.h"
 #include "includes/prepares.h"
 #include "includes/bindings.h"
 
 int main(int argc, char *argv[]) {
+    int serverSocket = connectToServer(HOST, PORT);
+
     gtk_init(&argc, &argv);
 
     GtkWidget   *window  = prepareWindow("Collaborative editor");
@@ -17,7 +20,7 @@ int main(int argc, char *argv[]) {
     GtkWidget     *statusbar = prepareStatusBar(vbox);
 
     gtk_widget_show_all(window);
-    bindEventListeners(window, exit, buffer, statusbar);
+    bindEventListeners(window, exit, buffer, statusbar, &serverSocket);
 
     gtk_main();
 
