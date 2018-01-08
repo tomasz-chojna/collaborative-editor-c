@@ -21,9 +21,9 @@ int main() {
     connect(socket_id, (struct sockaddr *) &serveraddr, sizeof(serveraddr));
 
     message_t m;
-    m.type = LINE_ADDED;
-    m.row = 14;
-    strcpy(m.text, "To jest moj tekst");
+    m.type = LINE_MODIFIED;
+    m.row = 2;
+    strcpy(m.text, "To jest inna pierwsza linijka");
 
     int size = sizeof(message_t);
     char* buffer = malloc(size);
