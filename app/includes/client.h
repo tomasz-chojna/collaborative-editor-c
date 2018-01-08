@@ -17,7 +17,7 @@
 #include <netdb.h>
 
 void sendDataToServer(const gchar *message, int serverSocket) {
-    char buffer[BUFFER_LENGTH];
+    char buffer[LINE_MAX_LENGTH];
     strcpy(buffer, message);
 
     if ((send(serverSocket, buffer, sizeof(buffer), 0)) < 0) {
@@ -42,7 +42,7 @@ void disconnectFromServer(int serverSocket) {
 int connectToServer(char *server_name, int server_port) {
     // Variable and structure definitions.
     int                serverSocket = -1;
-//    char               buffer[BUFFER_LENGTH];
+//    char               buffer[LINE_MAX_LENGTH];
     char               host[128];
     struct sockaddr_in serverAddress;
     struct hostent     *hostp;

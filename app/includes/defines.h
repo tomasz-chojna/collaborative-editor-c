@@ -3,4 +3,5 @@
 #define HOST "127.0.0.1"
 #define PORT 8888
 #define MAX_CLIENTS 30
-#define BUFFER_LENGTH 120
+#define LINES_LIMIT 10
+#define LINE_MAX_LENGTH 120
