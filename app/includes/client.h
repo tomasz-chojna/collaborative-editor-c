@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include <netdb.h>
+#include <stdlib.h>
 
 void sendDataToServer(const gchar *message, int serverSocket) {
     char buffer[LINE_MAX_LENGTH];
@@ -22,7 +23,7 @@ void sendDataToServer(const gchar *message, int serverSocket) {
 
     if ((send(serverSocket, buffer, sizeof(buffer), 0)) < 0) {
         perror("send() failed");
-//        return -1;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -55,7 +56,7 @@ int connectToServer(char *server_name, int server_port) {
      */
     if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket() failed");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     /*
@@ -81,7 +82,7 @@ int connectToServer(char *server_name, int server_port) {
         if (hostp == (struct hostent *) NULL) {
             printf("Host not found --> ");
             printf("h_errno = %d\n", h_errno);
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
         memcpy(&serverAddress.sin_addr, hostp->h_addr, sizeof(serverAddress.sin_addr));
@@ -92,7 +93,7 @@ int connectToServer(char *server_name, int server_port) {
      */
     if (connect(serverSocket, (struct sockaddr *) &serverAddress, sizeof(serverAddress)) < 0) {
         perror("connect() failed");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     return serverSocket;
