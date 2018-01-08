@@ -21,7 +21,7 @@ struct CollaborativeEditorServer {
     int server_socket;
     char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 
-    fd_set *read_fds;
+    fd_set read_fds;
 };
 
 void initialize_client_sockets(int* client_sockets, int size) {
@@ -83,10 +83,10 @@ void print_text(struct CollaborativeEditorServer *server) {
 int reset_fd_set(struct CollaborativeEditorServer *server) {
     //Clear the socket set. On each event loop iteration the fd_set has to
     // be destroyed and re-created
-    FD_ZERO(server->read_fds);
+    FD_ZERO(&server->read_fds);
 
     //Add server socket to fd_set
-    FD_SET(server->server_socket, server->read_fds);
+    FD_SET(server->server_socket, &server->read_fds);
     //Highest file descriptor number, needed for the select function
     int highest_file_descriptor = server->server_socket;
 
@@ -100,7 +100,7 @@ int reset_fd_set(struct CollaborativeEditorServer *server) {
             continue;
         }
 
-        FD_SET(socket_descriptor, server->read_fds);
+        FD_SET(socket_descriptor, &server->read_fds);
         if(socket_descriptor > highest_file_descriptor) {
             highest_file_descriptor = socket_descriptor;
         }
@@ -147,7 +147,7 @@ void broadcast_message(struct CollaborativeEditorServer *server, message_t messa
 
 void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     //If something happened on the server socket, its an incoming connection
-    if (!FD_ISSET(server->server_socket, server->read_fds)) {
+    if (!FD_ISSET(server->server_socket, &server->read_fds)) {
         return;
     }
 
@@ -169,7 +169,7 @@ void handle_client_socket_activity(
     struct CollaborativeEditorServer *server, int socket_index
 ) {
     int client_socket = server->client_sockets[socket_index];
-    if (!FD_ISSET(client_socket, server->read_fds)) {
+    if (!FD_ISSET(client_socket, &server->read_fds)) {
         return;
     }
 
@@ -214,7 +214,7 @@ void event_loop(struct CollaborativeEditorServer *server) {
         int highest_file_descriptor = reset_fd_set(server);
 
         int activity = select(
-            highest_file_descriptor + 1 , server->read_fds , NULL , NULL , NULL);
+            highest_file_descriptor + 1 , &server->read_fds , NULL , NULL , NULL);
 
         if (activity < 0) {
             printf("Select error");
