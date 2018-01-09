@@ -6,10 +6,18 @@ typedef struct BindingData {
     int       *serverSocket;
 } BindingData;
 
+void killClient() {
+    clientIsWorking = FALSE;
+}
+
 void onExit(const GtkWidget *window, const GtkToolItem *exit, BindingData *data) {
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(disconnectFromServer), data->serverSocket);
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(killClient), NULL);
+
+    g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(disconnectFromServer), data->serverSocket);
     g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(killClient), NULL);
 }
 
 void onBufferChanged(GtkTextBuffer *buffer, BindingData *data) {

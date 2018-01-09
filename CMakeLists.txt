@@ -16,9 +16,9 @@ LINK_DIRECTORIES(${GTK3_LIBRARY_DIRS})
 ADD_DEFINITIONS(${GTK3_CFLAGS_OTHER})
 
 # Add an executable compiled from hello.c
-ADD_EXECUTABLE(client app/includes/prepares.h app/includes/client.h app/includes/text_buffer_handler.h app/includes/bindings.h app/includes/common.h app/client.c)
-ADD_EXECUTABLE(server app/includes/defines.h app/server.c)
+ADD_EXECUTABLE(client app/includes/prepares.h app/includes/text_buffer_handler.h app/includes/bindings.h app/includes/common.h app/client.c)
+ADD_EXECUTABLE(server app/includes/common.h app/server.c)
 
 # Link the target to the GTK+ libraries
-TARGET_LINK_LIBRARIES(client ${GTK3_LIBRARIES})
+TARGET_LINK_LIBRARIES(client ${GTK3_LIBRARIES} -lpthread)
 #TARGET_LINK_LIBRARIES(version ${GTK3_LIBRARIES})

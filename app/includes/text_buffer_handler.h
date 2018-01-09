@@ -64,11 +64,12 @@ gchar *getCurrentLineText(const GtkTextBuffer *buffer) {
     return gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
 }
 
-message_t messageFromTextBuffer(const GtkTextBuffer *buffer) {
-    message_t messageToSend;
-    messageToSend.type = resolveMessageType(buffer);
-    messageToSend.row  = currentLineNumber(buffer);
-    strcpy(messageToSend.text, getCurrentLineText(buffer));
+message_t *messageFromTextBuffer(const GtkTextBuffer *buffer) {
+    message_t *messageToSend = malloc(sizeof(message_t));
+
+    messageToSend->type = resolveMessageType(buffer);
+    messageToSend->row  = currentLineNumber(buffer);
+    strcpy(messageToSend->text, getCurrentLineText(buffer));
 
     return messageToSend;
 }

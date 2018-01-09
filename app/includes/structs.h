@@ -6,6 +6,6 @@ typedef struct Message {
 
 typedef enum MessageType {
     LINE_MODIFIED = 1,
-    LINE_ADDED,
-    LINE_REMOVED,
+    LINE_ADDED = 2,
+    LINE_REMOVED = 3,
 } message_type_t;
