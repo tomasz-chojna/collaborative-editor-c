@@ -125,7 +125,7 @@ void add_new_socket_to_empty_client_slot(
 }
 
 
-void broadcast_message(struct CollaborativeEditorServer *server, message_t message) {
+void broadcast_message(struct CollaborativeEditorServer *server, message_t message, int owner_socket_id) {
     int size = sizeof(message_t);
     char* buffer = malloc(size);
     memset(buffer, 0x00, size);
@@ -133,7 +133,7 @@ void broadcast_message(struct CollaborativeEditorServer *server, message_t messa
 
     for (int i=0; i < MAX_CLIENTS; i++) {
         int client_socket = server->client_sockets[i];
-        if (client_socket == 0) {
+        if (client_socket == 0 || i == owner_socket_id) {
             continue;
         }
 
@@ -198,7 +198,7 @@ void handle_client_socket_activity(
     strcpy(server->lines[received_message.row], received_message.text);
     // print_text(server);
 
-    broadcast_message(server, received_message);
+    broadcast_message(server, received_message, socket_index);
 }
 
 
