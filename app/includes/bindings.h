@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-#include "triggers.h"
+#include "text_buffer_handler.h"
 
 typedef struct BindingData {
     GtkWidget *statusbar;
@@ -13,21 +13,21 @@ void onExit(const GtkWidget *window, const GtkToolItem *exit, BindingData *data)
 }
 
 void onBufferChanged(GtkTextBuffer *buffer, BindingData *data) {
-    g_signal_connect(buffer, "changed", G_CALLBACK(update_statusbar), data->statusbar);
-    g_signal_connect(buffer, "changed", G_CALLBACK(sendTypedCharacterToServer), data->serverSocket);
+    g_signal_connect(buffer, "changed", G_CALLBACK(updateStatusbar), data->statusbar);
+    g_signal_connect(buffer, "changed", G_CALLBACK(sendCurrentLineToServer), data->serverSocket);
     g_signal_connect_object(buffer, "mark_set", G_CALLBACK(mark_set_callback), data->statusbar, 0);
 }
 
 void initStatusBar(GtkTextBuffer *buffer, BindingData *data) {
-    update_statusbar(buffer, GTK_STATUSBAR(data->statusbar));
+    updateStatusbar(buffer, GTK_STATUSBAR(data->statusbar));
 }
 
 void bindEventListeners(
-        GtkWidget *window,
-        GtkToolItem *exit,
-        GtkTextBuffer *buffer,
-        GtkWidget *statusbar,
-        int *serverSocket
+    GtkWidget *window,
+    GtkToolItem *exit,
+    GtkTextBuffer *buffer,
+    GtkWidget *statusbar,
+    int *serverSocket
 ) {
     BindingData data;
     data.statusbar    = statusbar;

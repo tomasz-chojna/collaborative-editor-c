@@ -1,6 +1,13 @@
 #include <gtk/gtk.h>
 #include "client.h"
 
+enum MessageType resolveMessageType(const GtkTextBuffer *buffer) {
+
+    // TODO: real resolver of message type
+
+    return LINE_MODIFIED;
+}
+
 gint *getCursorCords(GtkTextBuffer *buffer, GtkTextIter *iter) {
     static gint cords[2];
 
@@ -22,7 +29,7 @@ gchar *getCursorStatus(GtkTextBuffer *buffer) {
     return g_strdup_printf("Col: %d Ln: %d", col + 1, row + 1);
 }
 
-void update_statusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
+void updateStatusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
     gtk_statusbar_pop(statusbar, 0);
     gchar *msg = getCursorStatus(buffer);
     gtk_statusbar_push(statusbar, 0, msg);
@@ -30,50 +37,50 @@ void update_statusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
     g_free(msg);
 }
 
-//void sendMessageToServer(gchar *msg) {
-//    socketClient(SERVER_NAME, SERVER_PORT, msg);
-//}
-
-void getBoundsOfCurrentLine(const GtkTextBuffer *buffer, GtkTextIter *start, GtkTextIter *end) {
+gint currentLineNumber(const GtkTextBuffer *buffer) {
     GtkTextIter iter;
-    gint        lineNumber;
-
 
     // mark the iter at the current position in the buffer
     gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer));
-    lineNumber = gtk_text_iter_get_line(&iter);
 
+    return gtk_text_iter_get_line(&iter);
+}
+
+void getBoundsOfCurrentLine(const GtkTextBuffer *buffer, GtkTextIter *start, GtkTextIter *end) {
+    gint lineNumber = currentLineNumber(buffer);
     // set start iterator to the very beginning of the line
     gtk_text_buffer_get_iter_at_line(buffer, start, lineNumber);
-
     // copy value of start to end
     (*end) = (*start);
-
     // and move it to the end of line
     gtk_text_iter_forward_to_line_end(end);
 }
 
-void sendTypedCharacterToServer(GtkTextBuffer *buffer, const int *serverSocket) {
-    gchar *msg;
+gchar *getCurrentLineText(const GtkTextBuffer *buffer) {
     GtkTextIter start, end;
     getBoundsOfCurrentLine(buffer, &start, &end);
 
     // retrieve message between the start and end
-    msg = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+    return gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+}
 
+message_t messageFromTextBuffer(const GtkTextBuffer *buffer) {
+    message_t messageToSend;
+    messageToSend.type = resolveMessageType(buffer);
+    messageToSend.row  = currentLineNumber(buffer);
+    strcpy(messageToSend.text, getCurrentLineText(buffer));
 
+    return messageToSend;
+}
 
-    // todo: send data in format containing line number, modification type and text.
-    // todo: create "modification type" resolver based on incoming text
-
-
-
-    sendDataToServer(msg, *serverSocket);
-
-    g_free(msg);
+void sendCurrentLineToServer(GtkTextBuffer *buffer, const int *serverSocket) {
+    sendMessageToServer(
+        messageFromTextBuffer(buffer),
+        *serverSocket
+    );
 }
 
 void mark_set_callback(GtkTextBuffer *buffer, const GtkTextIter *new_location, GtkTextMark *mark, gpointer data) {
 
-    update_statusbar(buffer, GTK_STATUSBAR(data));
+    updateStatusbar(buffer, GTK_STATUSBAR(data));
 }

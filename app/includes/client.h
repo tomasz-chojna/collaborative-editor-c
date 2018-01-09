@@ -17,15 +17,21 @@
 #include <netdb.h>
 #include <stdlib.h>
 
-void sendDataToServer(const gchar *message, int serverSocket) {
-    char buffer[LINE_MAX_LENGTH];
-    strcpy(buffer, message);
+void sendMessageToServer(message_t message, int serverSocket) {
+    // prepare the buffer for message
+    int size = sizeof(message_t);
+    char* buffer = malloc(size);
+    memset(buffer, 0x00, size);
+    memcpy(buffer, &message, size);
 
-    if ((send(serverSocket, buffer, sizeof(buffer), 0)) < 0) {
+    if ((send(serverSocket, buffer, size, 0)) < 0) {
         perror("send() failed");
         exit(EXIT_FAILURE);
     }
+
+    free(buffer);
 }
+
 
 /**
  * Closes socket descriptor
@@ -43,7 +49,6 @@ void disconnectFromServer(int serverSocket) {
 int connectToServer(char *server_name, int server_port) {
     // Variable and structure definitions.
     int                serverSocket = -1;
-//    char               buffer[LINE_MAX_LENGTH];
     char               host[128];
     struct sockaddr_in serverAddress;
     struct hostent     *hostp;
