@@ -22,7 +22,12 @@ int main(int argc, char *argv[]) {
     GtkWidget     *statusbar = prepareStatusBar(vbox);
 
     gtk_widget_show_all(window);
-    bindEventListeners(window, exit, buffer, statusbar, &serverSocket);
+
+
+    TextBufferData * data = malloc(sizeof(TextBufferData));
+    data->statusbar    = statusbar;
+    data->serverSocket = &serverSocket;
+    bindEventListeners(window, exit, buffer, data);
 
     struct TextViewWithSocket* textViewWithSocket = malloc(sizeof(struct TextViewWithSocket));
     textViewWithSocket->textView = (GtkTextView*) textView;
@@ -52,7 +57,9 @@ void reloadText(GtkTextView* textView, char lines[LINES_LIMIT][LINE_MAX_LENGTH])
     gtk_text_buffer_set_text(buffer, message, strlen(message));
 }
 
-void *incomingMessageListener(struct TextViewWithSocket* textViewWithSocket) {
+void *incomingMessageListener(void* threadContext) {
+    struct TextViewWithSocket* textViewWithSocket = (struct TextViewWithSocket*) threadContext;
+
     char lines[LINES_LIMIT][LINE_MAX_LENGTH];
     for (int i=0; i < LINES_LIMIT; i++) {
         strcpy(lines[i], "");

@@ -8,8 +8,9 @@
 #include <time.h>
 #include <netdb.h>
 #include <stdlib.h>
-
-extern clientIsWorking = TRUE;
+#include "text_buffer_structs.h"
+asd
+extern int clientIsWorking = TRUE;
 
 void *gtkListener();
 

@@ -1,6 +1,16 @@
 #include <gtk/gtk.h>
 #include "client.h"
 
+#define min(a, b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
+#define max(a, b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
 enum MessageType resolveMessageType(const GtkTextBuffer *buffer) {
 
     // TODO: real resolver of message type
@@ -29,15 +39,10 @@ gchar *getCursorStatus(GtkTextBuffer *buffer) {
     return g_strdup_printf("Col: %d Ln: %d", col + 1, row + 1);
 }
 
-void updateStatusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
-    gtk_statusbar_pop(statusbar, 0);
-    gchar *msg = getCursorStatus(buffer);
-    gtk_statusbar_push(statusbar, 0, msg);
-
-    g_free(msg);
-}
-
-gint currentLineNumber(const GtkTextBuffer *buffer) {
+/**
+ * @return The current cursor line in text buffer AFTER action.
+ */
+gint postCurrentCursorLine(GtkTextBuffer *buffer) {
     GtkTextIter iter;
 
     // mark the iter at the current position in the buffer
@@ -46,8 +51,7 @@ gint currentLineNumber(const GtkTextBuffer *buffer) {
     return gtk_text_iter_get_line(&iter);
 }
 
-void getBoundsOfCurrentLine(const GtkTextBuffer *buffer, GtkTextIter *start, GtkTextIter *end) {
-    gint lineNumber = currentLineNumber(buffer);
+void getBoundsOfLine(GtkTextBuffer *buffer, int lineNumber, GtkTextIter *start, GtkTextIter *end) {
     // set start iterator to the very beginning of the line
     gtk_text_buffer_get_iter_at_line(buffer, start, lineNumber);
     // copy value of start to end
@@ -56,32 +60,73 @@ void getBoundsOfCurrentLine(const GtkTextBuffer *buffer, GtkTextIter *start, Gtk
     gtk_text_iter_forward_to_line_end(end);
 }
 
-gchar *getCurrentLineText(const GtkTextBuffer *buffer) {
-    GtkTextIter start, end;
-    getBoundsOfCurrentLine(buffer, &start, &end);
-
-    // retrieve message between the start and end
-    return gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+void getBoundsOfCurrentLine(GtkTextBuffer *buffer, GtkTextIter *start, GtkTextIter *end) {
+    getBoundsOfLine(buffer, postCurrentCursorLine(buffer), start, end);
 }
 
-message_t *messageFromTextBuffer(const GtkTextBuffer *buffer) {
+gchar *getLineText(GtkTextBuffer *buffer, int lineNumber) {
+    GtkTextIter start, end;
+//    getBoundsOfCurrentLine(buffer, &start, &end);
+    getBoundsOfLine(buffer, lineNumber, &start, &end);
+
+    // retrieve message between the start and end
+    return gtk_text_buffer_get_text(buffer, &start, &end, TRUE);
+}
+
+/**
+ * @return The text of the line lineNumber from GtkTextBuffer *buffer.
+ */
+message_t *messageFromLineOfTextBuffer(GtkTextBuffer *buffer, enum MessageType type, int lineNumber) {
     message_t *messageToSend = malloc(sizeof(message_t));
 
-    messageToSend->type = resolveMessageType(buffer);
-    messageToSend->row  = currentLineNumber(buffer);
-    strcpy(messageToSend->text, getCurrentLineText(buffer));
+    messageToSend->type = type;
+    messageToSend->row  = lineNumber;
+
+    char *lineText = type == LINE_REMOVED ? "" : getLineText(buffer, lineNumber);
+    if (/*type == LINE_ADDED && */lineText[0] == '\n') lineText = "";
+
+    strcpy(messageToSend->text, lineText);
 
     return messageToSend;
 }
 
-void sendCurrentLineToServer(GtkTextBuffer *buffer, const int *serverSocket) {
-    sendMessageToServer(
-        messageFromTextBuffer(buffer),
-        *serverSocket
-    );
+void sendModifiedLinesToServer(GtkTextBuffer *buffer, TextBufferData *data) {
+    int linesDiff    = postCurrentCursorLine(buffer) - data->currentCursorLine;
+    int startingLine = data->currentCursorLine;
+
+    enum MessageType type;
+
+    int i = 0;
+    do {
+        type = (i == min(0, linesDiff) /*|| min != max && i == max*/)
+               ? LINE_MODIFIED
+               : (i > 0 ? LINE_ADDED : LINE_REMOVED);
+
+        sendMessageToServer(
+            messageFromLineOfTextBuffer(buffer, type, startingLine + i),
+            *(data->serverSocket)
+        );
+    } while (
+        linesDiff != 0
+        && (linesDiff > 0 ? (i++) : (i--)) != linesDiff
+        );
 }
 
-void mark_set_callback(GtkTextBuffer *buffer, const GtkTextIter *new_location, GtkTextMark *mark, gpointer data) {
+void updateStatusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
+    gtk_statusbar_pop(statusbar, 0);
+    gchar *msg = getCursorStatus(buffer);
+    gtk_statusbar_push(statusbar, 0, msg);
 
-    updateStatusbar(buffer, GTK_STATUSBAR(data));
+    g_free(msg);
+}
+
+void
+setCurrentCursorLine(GtkTextBuffer *buffer, const GtkTextIter *new_location, GtkTextMark *mark, TextBufferData *data) {
+    GtkTextIter start, end;
+    data->currentCursorLine = (int) getCursorCords(buffer, &start)[0];
+
+    // TODO: handle selection
+//    gtk_text_buffer_get_selection_bounds(buffer, &start, &end);
+
+    updateStatusbar(buffer, GTK_STATUSBAR(data->statusbar));
 }
