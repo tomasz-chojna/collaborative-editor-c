@@ -21,7 +21,7 @@ struct CollaborativeEditorServer {
     int server_socket;
     char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 
-    fd_set read_fds;
+    fd_set readingFileDescriptors;
 };
 
 void initialize_client_sockets(int* client_sockets, int size) {
@@ -83,10 +83,10 @@ void print_text(struct CollaborativeEditorServer *server) {
 int reset_fd_set(struct CollaborativeEditorServer *server) {
     //Clear the socket set. On each event loop iteration the fd_set has to
     // be destroyed and re-created
-    FD_ZERO(&server->read_fds);
+    FD_ZERO(&server->readingFileDescriptors);
 
     //Add server socket to fd_set
-    FD_SET(server->server_socket, &server->read_fds);
+    FD_SET(server->server_socket, &server->readingFileDescriptors);
     //Highest file descriptor number, needed for the select function
     int highest_file_descriptor = server->server_socket;
 
@@ -100,7 +100,7 @@ int reset_fd_set(struct CollaborativeEditorServer *server) {
             continue;
         }
 
-        FD_SET(socket_descriptor, &server->read_fds);
+        FD_SET(socket_descriptor, &server->readingFileDescriptors);
         if(socket_descriptor > highest_file_descriptor) {
             highest_file_descriptor = socket_descriptor;
         }
@@ -169,7 +169,7 @@ void initial_synchronization(struct CollaborativeEditorServer *server, int clien
 
 void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     //If something happened on the server socket, its an incoming connection
-    if (!FD_ISSET(server->server_socket, &server->read_fds)) {
+    if (!FD_ISSET(server->server_socket, &server->readingFileDescriptors)) {
         return;
     }
 
@@ -186,11 +186,18 @@ void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
     initial_synchronization(server, new_socket);
 }
 
+void resolveIncomingMessageFromClient(const struct CollaborativeEditorServer *server, message_t *received_message) {
+
+    // TODO: zamiast tego trzeba zrobić obsługę MessageType, zeby dobrze zarządzać server->lines
+
+    strcpy(server->lines[received_message->row], received_message->text);
+}
+
 void handle_client_socket_activity(
     struct CollaborativeEditorServer *server, int socket_index
 ) {
     int client_socket = server->client_sockets[socket_index];
-    if (!FD_ISSET(client_socket, &server->read_fds)) {
+    if (!FD_ISSET(client_socket, &server->readingFileDescriptors)) {
         return;
     }
 
@@ -213,10 +220,14 @@ void handle_client_socket_activity(
     memcpy(&received_message, buffer, size);
     free(buffer);
 
+    // after connecting, client sends some trash and type is 0
+    if (received_message.type == 0) return;
+
     printf("Received message from socket %d at index %d - [row: %d, type: %d, text: %s]\n",
             client_socket, socket_index, received_message.row, received_message.type, received_message.text);
 
-    strcpy(server->lines[received_message.row], received_message.text);
+    resolveIncomingMessageFromClient(server, &received_message);
+
     // print_text(server);
 
     broadcast_message(server, received_message, socket_index);
@@ -234,10 +245,12 @@ void event_loop(struct CollaborativeEditorServer *server) {
     while(TRUE) {
         int highest_file_descriptor = reset_fd_set(server);
 
-        int activity = select(
-            highest_file_descriptor + 1 , &server->read_fds , NULL , NULL , NULL);
+        int numberOfReadyDescriptors = select(
+//            highest_file_descriptor + 1 , &server->readingFileDescriptors , NULL , NULL , NULL
+            server->num_of_client_sockets + 1 , &server->readingFileDescriptors , NULL , NULL , NULL
+        );
 
-        if (activity < 0) {
+        if (numberOfReadyDescriptors < 0) {
             printf("Select error");
         }
 
@@ -252,9 +265,16 @@ void initialize_text_content(struct CollaborativeEditorServer *server) {
         server->lines[i][LINE_MAX_LENGTH - 1] = '\0';
     }
 
-    strcpy(server->lines[0], "Pierwsza linijka");
-    strcpy(server->lines[1], "Druga linijka");
-    strcpy(server->lines[2], "Trzecia linijka");
+    strcpy(server->lines[0], ".");
+    strcpy(server->lines[1], "Lorem Ipsum jest tekstem stosowanym jako przykładowy");
+    strcpy(server->lines[2], "wypełniacz w przemyśle poligraficznym. Został po raz");
+    strcpy(server->lines[3], "pierwszy użyty w XV w. przez nieznanego drukarza do");
+    strcpy(server->lines[4], "wypełnienia tekstem próbnej książki. Pięć wieków");
+    strcpy(server->lines[5], "później zaczął być używany przemyśle elektronicznym,");
+    strcpy(server->lines[6], "pozostając praktycznie niezmienionym. Spopularyzował");
+    strcpy(server->lines[7], "się w latach 60. XX w. wraz z publikacją arkuszy");
+    strcpy(server->lines[8], "Letrasetu, zawierających fragmenty Lorem Ipsum, a");
+    strcpy(server->lines[9], "ostatnio z zawierającym różne wersje Lorem Ipsum oprogramowaniem");
 }
 
 int main(int argc , char *argv[])

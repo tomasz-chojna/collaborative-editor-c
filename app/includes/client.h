@@ -13,6 +13,9 @@
 extern int    clientIsWorking = TRUE;
 extern gulong onChangeSignalId = FALSE;
 
+G_LOCK_DEFINE_STATIC (lockParsingIncomingMessage);
+static volatile int lockParsingIncomingMessage = FALSE;
+
 void *gtkListener();
 
 char *messageToString(message_t *message);

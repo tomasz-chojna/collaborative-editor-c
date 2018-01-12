@@ -11,6 +11,8 @@ struct TextViewWithSocket {
     TextBufferData* bufferData;
     int clientSocket;
     char lines[LINES_LIMIT][LINE_MAX_LENGTH];
+
+    message_t * lastReceivedMessage;
 };
 
 void killClient() {

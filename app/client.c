@@ -6,7 +6,7 @@
 
 int main(int argc, char *argv[]) {
     int serverSocket = connectToServer(HOST, PORT);
-//    g_thread_init();
+//    g_thread_init(NULL);
     gtk_init(&argc, &argv);
 
     GtkWidget   *window  = prepareWindow("Collaborative editor");
@@ -43,35 +43,26 @@ void *gtkListener() {
     gtk_main();
 }
 
-void reloadText(GtkTextBuffer *textBuffer, message_t *receivedMessage, char lines[LINES_LIMIT][LINE_MAX_LENGTH]) {
-//    size_t size     = LINES_LIMIT * LINE_MAX_LENGTH;
-    char *message = messageToString(receivedMessage);
+static gboolean resolveIncomingMessage(struct TextViewWithSocket *textViewWithSocket) {
+    G_LOCK(lockParsingIncomingMessage); // TODO: a gówno to dało
 
-    for (int i = 0; i < LINES_LIMIT; i++) {
-        strcat(message, lines[i]);
-        size_t len = strlen(message);
+    printf("%s\n", textViewWithSocket->lastReceivedMessage->text);
 
-        message[len] = '\n';
-    }
-//
-//    gtk_text_buffer_set_text(textBuffer, message, strlen(message));
-}
-
-void resolveIncomingMessage(message_t *message, struct TextViewWithSocket *textViewWithSocket) {
     GtkTextIter start, end;
-    char newLine[1] = {'\n'};
+    message_t *message = textViewWithSocket->lastReceivedMessage;
 
     if (onChangeSignalId != NULL) unbindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer);
 
     switch (message->type) {
         case SERVER_FINISHED_SENDING_DATA:
             bindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer, textViewWithSocket->bufferData);
-            return;
+            break;
         case LINE_ADDED:
-            gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &start, message->row);
-            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &start, newLine, 1);
-//            gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &start, message->row + 1);
-//            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &start, message->text, strlen(message->text));
+//            gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &start, message->row);
+            getBoundsOfLine(textViewWithSocket->textBuffer, message->row, &start, &end);
+            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &end, "\n", 1);
+            gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &end, message->row + 1);
+            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &end, message->text, strlen(message->text));
 
             break;
         case LINE_REMOVED:
@@ -86,32 +77,40 @@ void resolveIncomingMessage(message_t *message, struct TextViewWithSocket *textV
             getBoundsOfLine(textViewWithSocket->textBuffer, message->row, &start, &end);
             gtk_text_buffer_delete(textViewWithSocket->textBuffer, &start, &end);
 
-            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &start, message->text, strlen(message->text));
+            gtk_text_buffer_insert(textViewWithSocket->textBuffer, &end, message->text, strlen(message->text));
 
             break;
     }
 
-//        strcpy(textViewWithSocket->lines[message.row], message.text);
-//        reloadText(textViewWithSocket->textBuffer, &message, textViewWithSocket->lines);
+//    g_free(textViewWithSocket);
+    G_UNLOCK(lockParsingIncomingMessage);
 
+    return G_SOURCE_REMOVE;
 }
 
 void *incomingMessageListener(void *threadContext) {
-    struct TextViewWithSocket *textViewWithSocket = (struct TextViewWithSocket *) threadContext;
+    // need to make thread-independent instance of TextViewWithSocket
+    struct TextViewWithSocket *textViewWithSocket = g_new0(struct TextViewWithSocket, 1);
+    textViewWithSocket = (struct TextViewWithSocket *) threadContext;
+    textViewWithSocket->lastReceivedMessage = malloc(sizeof(message_t));
 
-    for (int i = 0; i < LINES_LIMIT; i++) {
-        strcpy(textViewWithSocket->lines[i], "");
-    }
+//    for (int i = 0; i < LINES_LIMIT; i++) {
+//        strcpy(textViewWithSocket->lines[i], "");
+//    }
 
     while (TRUE) {
         size_t messageSize   = sizeof(message_t);
         char   *socketBuffer = malloc(messageSize);
 
         if (recv(textViewWithSocket->clientSocket, socketBuffer, messageSize, NULL) != -1) {
-            message_t receivedMessage;
-            memcpy(&receivedMessage, socketBuffer, messageSize);
+            if (!lockParsingIncomingMessage) {
+//            message_t receivedMessage; then: memcpy(&receivedMessage...
+                memcpy(textViewWithSocket->lastReceivedMessage, socketBuffer, messageSize);
 
-            resolveIncomingMessage(&receivedMessage, textViewWithSocket);
+                g_usleep(3*1000); // TODO: tak działa, ale ten lock na górze coś nie bardzo
+                gdk_threads_add_idle(resolveIncomingMessage, textViewWithSocket);
+            }
+//            resolveIncomingMessage(&receivedMessage, textViewWithSocket);
         }
     }
 
