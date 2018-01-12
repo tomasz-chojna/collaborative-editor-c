@@ -147,14 +147,24 @@ void broadcast_message(struct CollaborativeEditorServer *server, message_t messa
 }
 
 void initial_synchronization(struct CollaborativeEditorServer *server, int clientSocket) {
+   
+
     for (int i=0; i < LINES_LIMIT; i++) {
         message_t message;
         message.row = i;
         strcpy(message.text, server->lines[i]);
-        message.type = LINE_MODIFIED;
+        message.type = i == 0 ? LINE_MODIFIED : LINE_ADDED;
 
         send_message(message, clientSocket);
     }
+
+    // flag that server finished sending data in this loop
+    message_t message_last;
+    message_last.row = -1;
+    strcpy(message_last.text, "");
+    message_last.type = SERVER_FINISHED_SENDING_DATA;
+
+    send_message(message_last, clientSocket);
 }
 
 void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
@@ -242,8 +252,9 @@ void initialize_text_content(struct CollaborativeEditorServer *server) {
         server->lines[i][LINE_MAX_LENGTH - 1] = '\0';
     }
 
-    strcpy(server->lines[0], "Pierwsza linijka Pierwsza linijka Pierwsza linijka Pierwsza linijka Pierwsza linijka Pierwsza linijka Pierwsza linijkak");
+    strcpy(server->lines[0], "Pierwsza linijka");
     strcpy(server->lines[1], "Druga linijka");
+    strcpy(server->lines[1], "Trzecia linijka");
 }
 
 int main(int argc , char *argv[])

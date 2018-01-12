@@ -18,6 +18,8 @@ char *messageToString(message_t *message);
 
 void sendMessageToServer(message_t *message, int serverSocket);
 
+void eventLoops(TextBufferData *textViewWithSocket);
+
 /**
  * Closes socket descriptor
  */

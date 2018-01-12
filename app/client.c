@@ -24,16 +24,17 @@ int main(int argc, char *argv[]) {
     gtk_widget_show_all(window);
 
 
-    TextBufferData * data = malloc(sizeof(TextBufferData));
+    TextBufferData *data = malloc(sizeof(TextBufferData));
     data->statusbar    = statusbar;
+    data->textBuffer   = buffer;
     data->serverSocket = &serverSocket;
-    bindEventListeners(window, exit, buffer, data);
+    bindEventListeners(window, exit, data);
 
-    struct TextViewWithSocket* textViewWithSocket = malloc(sizeof(struct TextViewWithSocket));
-    textViewWithSocket->textView = (GtkTextView*) textView;
-    textViewWithSocket->clientSocket = serverSocket;
+//    struct TextViewWithSocket *textViewWithSocket = malloc(sizeof(struct TextViewWithSocket));
+//    textViewWithSocket->textBuffer   = buffer;
+//    textViewWithSocket->clientSocket = serverSocket;
 
-    eventLoops(textViewWithSocket);
+    eventLoops(data);
 
     return 0;
 }
@@ -42,50 +43,84 @@ void *gtkListener() {
     gtk_main();
 }
 
-void reloadText(GtkTextView* textView, char lines[LINES_LIMIT][LINE_MAX_LENGTH]) {
-    size_t size = LINES_LIMIT * LINE_MAX_LENGTH;
-    char *message = (char*) malloc(sizeof(char) * size);
+void reloadText(GtkTextBuffer *textBuffer, message_t *receivedMessage, char lines[LINES_LIMIT][LINE_MAX_LENGTH]) {
+//    size_t size     = LINES_LIMIT * LINE_MAX_LENGTH;
+    char *message = messageToString(receivedMessage);
 
-    for (int i=0; i < LINES_LIMIT; i++) {
+    for (int i = 0; i < LINES_LIMIT; i++) {
         strcat(message, lines[i]);
         size_t len = strlen(message);
 
         message[len] = '\n';
     }
-
-    GtkTextBuffer *buffer = gtk_text_view_get_buffer((GtkTextView*) textView);
-    gtk_text_buffer_set_text(buffer, message, strlen(message));
+//
+//    gtk_text_buffer_set_text(textBuffer, message, strlen(message));
 }
 
-void *incomingMessageListener(void* threadContext) {
-    struct TextViewWithSocket* textViewWithSocket = (struct TextViewWithSocket*) threadContext;
+void resolveIncomingMessage(message_t *message, TextBufferData *bufferData) {
+    GtkTextIter start, end;
 
-    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
-    for (int i=0; i < LINES_LIMIT; i++) {
-        strcpy(lines[i], "");
+    unbindOnChangeSendModifiedLinesToServer(bufferData);
+
+    switch (message->type) {
+        case SERVER_FINISHED_SENDING_DATA:
+            bindOnChangeSendModifiedLinesToServer(bufferData);
+            return;
+        case LINE_ADDED:
+            gtk_text_buffer_get_iter_at_line(bufferData->textBuffer, &start, message->row);
+            gtk_text_buffer_insert(bufferData->textBuffer, &start, "\n", 1);
+
+            break;
+        case LINE_REMOVED:
+            gtk_text_buffer_get_iter_at_line(bufferData->textBuffer, &start, message->row);
+            gtk_text_buffer_backspace(bufferData->textBuffer, &start, FALSE, TRUE);
+
+            break;
+        case LINE_MODIFIED:
+        default:
+            gtk_text_buffer_get_iter_at_line(bufferData->textBuffer, &start, message->row);
+
+            getBoundsOfLine(bufferData->textBuffer, message->row, &start, &end);
+            gtk_text_buffer_delete(bufferData->textBuffer, &start, &end);
+
+            gtk_text_buffer_insert(bufferData->textBuffer, &start, message->text, strlen(message->text));
+
+            break;
+    }
+
+//        strcpy(textViewWithSocket->lines[message.row], message.text);
+//        reloadText(textViewWithSocket->textBuffer, &message, textViewWithSocket->lines);
+
+}
+
+void *incomingMessageListener(void *threadContext) {
+    TextBufferData *textViewWithSocket = (TextBufferData *) threadContext;
+
+    for (int i = 0; i < LINES_LIMIT; i++) {
+        strcpy(textViewWithSocket->lines[i], "");
     }
 
     while (TRUE) {
-        size_t messageSize = sizeof(message_t);
-        char *socketBuffer = malloc(messageSize);
+        size_t messageSize   = sizeof(message_t);
+        char   *socketBuffer = malloc(messageSize);
 
-        if (recv(textViewWithSocket->clientSocket, socketBuffer, messageSize, NULL) != -1) {
+        if (recv(*textViewWithSocket->serverSocket, socketBuffer, messageSize, NULL) != -1) {
             message_t receivedMessage;
             memcpy(&receivedMessage, socketBuffer, messageSize);
 
-            strcpy(lines[receivedMessage.row], receivedMessage.text);
-            reloadText(textViewWithSocket->textView, lines);
+            resolveIncomingMessage(&receivedMessage, textViewWithSocket);
         }
     }
 
     free(textViewWithSocket);
 }
 
-void eventLoops(struct TextViewWithSocket* textViewWithSocket) {
+void eventLoops(TextBufferData *textViewWithSocket) {
     pthread_t thread[2];
 
     //starting the thread
     pthread_create(&thread[0], NULL, gtkListener, NULL);
+    for (int i =0; i <= 100000000; i++);
     pthread_create(&thread[1], NULL, incomingMessageListener, textViewWithSocket);
 
     //waiting for completion
@@ -94,8 +129,8 @@ void eventLoops(struct TextViewWithSocket* textViewWithSocket) {
 }
 
 char *messageToString(message_t *message) {
-    size_t  size    = sizeof(message_t);
-    char *buffer = malloc(size);
+    size_t size    = sizeof(message_t);
+    char   *buffer = malloc(size);
     memset(buffer, 0x00, size);
     memcpy(buffer, message, size);
 

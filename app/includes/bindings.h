@@ -7,15 +7,16 @@ typedef struct BindingData {
 } BindingData;
 
 struct TextViewWithSocket {
-    GtkTextView* textView;
+    GtkTextBuffer* textBuffer;
     int clientSocket;
+    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 };
 
 void killClient() {
     clientIsWorking = FALSE;
 }
 
-void onExit(const GtkWidget *window, const GtkToolItem *exit, TextBufferData *data) {
+void bindOnExit(const GtkWidget *window, const GtkToolItem *exit, TextBufferData *data) {
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(disconnectFromServer), data->serverSocket);
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(G_OBJECT(exit), "clicked", G_CALLBACK(killClient), NULL);
@@ -25,26 +26,33 @@ void onExit(const GtkWidget *window, const GtkToolItem *exit, TextBufferData *da
     g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(killClient), NULL);
 }
 
-void onBufferChanged(GtkTextBuffer *buffer, TextBufferData *data) {
+void bindOnChangeSendModifiedLinesToServer(TextBufferData *data) {
+    data->onChangeSignalId = g_signal_connect(data->textBuffer, "changed", G_CALLBACK(sendModifiedLinesToServer), data);
+}
 
-    g_signal_connect(buffer, "mark_set", G_CALLBACK(setCurrentCursorLine), data);
-    g_signal_connect(buffer, "changed", G_CALLBACK(sendModifiedLinesToServer), data);
+void unbindOnChangeSendModifiedLinesToServer(TextBufferData *data) {
+    g_signal_handler_disconnect(data->textBuffer, data->onChangeSignalId);
+}
+
+void bindOnBufferChanged(TextBufferData *data) {
+
+    g_signal_connect(data->textBuffer, "mark_set", G_CALLBACK(setCurrentCursorLine), data);
+    bindOnChangeSendModifiedLinesToServer(data);
 //    g_signal_connect_object(buffer, "mark_set", G_CALLBACK(mark_set_callback), data->statusbar, 0);
 }
 
-void initStatusBar(GtkTextBuffer *buffer, TextBufferData *data) {
-    updateStatusbar(buffer, GTK_STATUSBAR(data->statusbar));
+void initStatusBar(TextBufferData *data) {
+    updateStatusbar(data->textBuffer, GTK_STATUSBAR(data->statusbar));
 }
 
 void bindEventListeners(
     GtkWidget *window,
     GtkToolItem *exit,
-    GtkTextBuffer *buffer,
     TextBufferData *data
 ) {
 
-    onExit(window, exit, data);
-    onBufferChanged(buffer, data);
+    bindOnExit(window, exit, data);
+    bindOnBufferChanged(data);
 
-    initStatusBar(buffer, data);
+    initStatusBar(data);
 }
