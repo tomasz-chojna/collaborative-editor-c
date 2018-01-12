@@ -9,3 +9,9 @@ typedef enum MessageType {
     LINE_ADDED = 2,
     LINE_REMOVED = 3,
 } message_type_t;
+
+typedef struct TextBufferData {
+    GtkWidget *statusbar;
+    int       *serverSocket;
+    int       currentCursorLine;
+} TextBufferData;

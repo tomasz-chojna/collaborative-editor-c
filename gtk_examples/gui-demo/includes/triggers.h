@@ -22,14 +22,6 @@ gchar *getCursorStatus(GtkTextBuffer *buffer) {
     return g_strdup_printf("Col: %d Ln: %d", col + 1, row + 1);
 }
 
-void update_statusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {
-    gtk_statusbar_pop(statusbar, 0);
-    gchar *msg = getCursorStatus(buffer);
-    gtk_statusbar_push(statusbar, 0, msg);
-
-    g_free(msg);
-}
-
 void sendMessageToServer(gchar *msg) {
     socketClient(SERVER_NAME, SERVER_PORT, msg);
 }
