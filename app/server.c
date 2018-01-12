@@ -158,7 +158,7 @@ void initial_synchronization(struct CollaborativeEditorServer *server, int clien
         send_message(message, clientSocket);
     }
 
-    // flag that server finished sending data in this loop
+//     flag that server finished sending data in this loop
     message_t message_last;
     message_last.row = -1;
     strcpy(message_last.text, "");
@@ -254,7 +254,7 @@ void initialize_text_content(struct CollaborativeEditorServer *server) {
 
     strcpy(server->lines[0], "Pierwsza linijka");
     strcpy(server->lines[1], "Druga linijka");
-    strcpy(server->lines[1], "Trzecia linijka");
+    strcpy(server->lines[2], "Trzecia linijka");
 }
 
 int main(int argc , char *argv[])

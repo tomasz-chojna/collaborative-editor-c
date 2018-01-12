@@ -10,15 +10,14 @@
 #include <stdlib.h>
 #include "text_buffer_structs.h"
 
-extern int clientIsWorking = TRUE;
+extern int    clientIsWorking = TRUE;
+extern gulong onChangeSignalId = FALSE;
 
 void *gtkListener();
 
 char *messageToString(message_t *message);
 
 void sendMessageToServer(message_t *message, int serverSocket);
-
-void eventLoops(TextBufferData *textViewWithSocket);
 
 /**
  * Closes socket descriptor

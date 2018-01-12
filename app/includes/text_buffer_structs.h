@@ -4,5 +4,5 @@ typedef struct TextBufferData {
     int           *serverSocket;
     char          lines[LINES_LIMIT][LINE_MAX_LENGTH];
     int           currentCursorLine;
-    gulong        onChangeSignalId;
+//    gulong        onChangeSignalId;
 } TextBufferData;

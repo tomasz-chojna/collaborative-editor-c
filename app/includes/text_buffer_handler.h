@@ -6,18 +6,6 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-#define max(a, b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
-
-enum MessageType resolveMessageType(const GtkTextBuffer *buffer) {
-
-    // TODO: real resolver of message type
-
-    return LINE_MODIFIED;
-}
-
 gint *getCursorCords(GtkTextBuffer *buffer, GtkTextIter *iter) {
     static gint cords[2];
 
