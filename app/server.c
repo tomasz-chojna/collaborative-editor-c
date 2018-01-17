@@ -159,7 +159,7 @@ void initial_synchronization(struct CollaborativeEditorServer *server, int clien
     message_t message_last;
     message_last.row = -1;
     strcpy(message_last.text, "");
-    message_last.type = SERVER_FINISHED_SENDING_DATA;
+    message_last.type = FINISHED_SENDING_DATA;
 
     send_message(message_last, clientSocket);
 }
@@ -187,8 +187,8 @@ void resolveIncomingMessageFromClient(const struct CollaborativeEditorServer *se
     switch (received_message->type) {
         case LINE_ADDED: textAddNewLine(server->text, received_message->row, received_message->text); break;
         case LINE_REMOVED: textRemoveLine(server->text, received_message->row); break;
-        case LINE_MODIFIED:
-        default: textModifyLine(server->text, received_message->row, received_message->text); break;
+        case LINE_MODIFIED: textModifyLine(server->text, received_message->row, received_message->text); break;
+        default: break;
     }
 }
 

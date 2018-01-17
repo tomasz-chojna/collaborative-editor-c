@@ -10,7 +10,6 @@ struct TextViewWithSocket {
     GtkTextBuffer* textBuffer;
     TextBufferData* bufferData;
     int clientSocket;
-    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 
     message_t * lastReceivedMessage;
 };

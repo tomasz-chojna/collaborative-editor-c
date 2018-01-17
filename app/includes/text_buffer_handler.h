@@ -79,25 +79,36 @@ message_t *messageFromLineOfTextBuffer(GtkTextBuffer *buffer, enum MessageType t
 }
 
 void sendModifiedLinesToServer(GtkTextBuffer *buffer, TextBufferData *data) {
-    int linesDiff    = postCurrentCursorLine(buffer) - data->currentCursorLine;
-    int startingLine = data->currentCursorLine;
+    if (!isServerSendingData) {
+        int linesDiff    = postCurrentCursorLine(buffer) - data->currentCursorLine;
+        int startingLine = data->currentCursorLine;
 
-    enum MessageType type;
+        enum MessageType type;
 
-    int i = 0;
-    do {
-        type = (i == min(0, linesDiff) /*|| min != max && i == max*/)
-               ? LINE_MODIFIED
-               : (i > 0 ? LINE_ADDED : LINE_REMOVED);
+        int i = 0;
+        do {
+            type = (i == min(0, linesDiff) /*|| min != max && i == max*/)
+                   ? LINE_MODIFIED
+                   : (i > 0 ? LINE_ADDED : LINE_REMOVED);
 
-        sendMessageToServer(
-            messageFromLineOfTextBuffer(buffer, type, startingLine + i),
-            *(data->serverSocket)
-        );
-    } while (
-        linesDiff != 0
-        && (linesDiff > 0 ? (i++) : (i--)) != linesDiff
-        );
+            sendMessageToServer(
+                messageFromLineOfTextBuffer(buffer, type, startingLine + i),
+                *(data->serverSocket)
+            );
+        } while (
+            linesDiff != 0
+            && (linesDiff > 0 ? (i++) : (i--)) != linesDiff
+            );
+
+        // flag that finished sending data in this loop
+        g_usleep(5*1000); //c'mon...
+        message_t message_last;
+        message_last.row = -1;
+        strcpy(message_last.text, "");
+        message_last.type = FINISHED_SENDING_DATA;
+
+        sendMessageToServer(&message_last, *(data->serverSocket));
+    }
 }
 
 void updateStatusbar(GtkTextBuffer *buffer, GtkStatusbar *statusbar) {

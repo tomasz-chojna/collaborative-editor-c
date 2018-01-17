@@ -45,17 +45,19 @@ void *gtkListener() {
 
 static gboolean resolveIncomingMessage(struct TextViewWithSocket *textViewWithSocket) {
     G_LOCK(lockParsingIncomingMessage); // TODO: a gówno to dało
+    isServerSendingData = 1;
 
     printf("%s\n", textViewWithSocket->lastReceivedMessage->text);
 
     GtkTextIter start, end;
     message_t *message = textViewWithSocket->lastReceivedMessage;
 
-    if (onChangeSignalId != NULL) unbindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer);
+//    if (onChangeSignalId != NULL) unbindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer);
 
     switch (message->type) {
-        case SERVER_FINISHED_SENDING_DATA:
-            bindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer, textViewWithSocket->bufferData);
+        case FINISHED_SENDING_DATA:
+//            bindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer, textViewWithSocket->bufferData);
+            isServerSendingData = 0;
             break;
         case LINE_ADDED:
 //            gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &start, message->row);
@@ -71,7 +73,6 @@ static gboolean resolveIncomingMessage(struct TextViewWithSocket *textViewWithSo
 
             break;
         case LINE_MODIFIED:
-        default:
             gtk_text_buffer_get_iter_at_line(textViewWithSocket->textBuffer, &start, message->row);
 
             getBoundsOfLine(textViewWithSocket->textBuffer, message->row, &start, &end);
@@ -80,6 +81,7 @@ static gboolean resolveIncomingMessage(struct TextViewWithSocket *textViewWithSo
             gtk_text_buffer_insert(textViewWithSocket->textBuffer, &end, message->text, strlen(message->text));
 
             break;
+        default: break;
     }
 
 //    g_free(textViewWithSocket);
@@ -101,6 +103,10 @@ void *incomingMessageListener(void *threadContext) {
     while (TRUE) {
         size_t messageSize   = sizeof(message_t);
         char   *socketBuffer = malloc(messageSize);
+
+//        if (onChangeSignalId == 0/* && !isBusy*/) {
+//            bindOnChangeSendModifiedLinesToServer(textViewWithSocket->textBuffer, textViewWithSocket->bufferData);
+//        }
 
         if (recv(textViewWithSocket->clientSocket, socketBuffer, messageSize, NULL) != -1) {
             if (!lockParsingIncomingMessage) {
