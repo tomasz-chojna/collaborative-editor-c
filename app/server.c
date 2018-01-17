@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
 #include "includes/common.h"
+#include "includes/text_handler.h"
 
 struct CollaborativeEditorServer {
     struct sockaddr_in *address;
@@ -18,13 +19,14 @@ struct CollaborativeEditorServer {
     int *client_sockets;
     int num_of_client_sockets;
 
-    int server_socket;
-    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
+    int  server_socket;
+    Text *text;
+//    char lines[LINES_LIMIT][LINE_MAX_LENGTH];
 
     fd_set readingFileDescriptors;
 };
 
-void initialize_client_sockets(int* client_sockets, int size) {
+void initialize_client_sockets(int *client_sockets, int size) {
     for (int i = 0; i < size; i++) {
         // Assigning zero to all sockets, so we won't have any strange values there
         client_sockets[i] = 0;
@@ -32,7 +34,7 @@ void initialize_client_sockets(int* client_sockets, int size) {
 }
 
 int create_server_socket() {
-    int server_socket = socket(AF_INET, SOCK_STREAM , 0);
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket == 0) {
         perror("Error has occcured while creating server socket");
         exit(EXIT_FAILURE);
@@ -40,8 +42,7 @@ int create_server_socket() {
 
     //Set master socket to allow multiple connections
     int multiple_conns = TRUE;
-    if( setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&multiple_conns, sizeof(multiple_conns)) < 0 )
-    {
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *) &multiple_conns, sizeof(multiple_conns)) < 0) {
         perror("Setsockopt has failed");
         exit(EXIT_FAILURE);
     }
@@ -51,15 +52,14 @@ int create_server_socket() {
 }
 
 void initialize_address_structure(struct sockaddr_in *address) {
-    address->sin_family = AF_INET;
+    address->sin_family      = AF_INET;
     address->sin_addr.s_addr = inet_addr(HOST);
-    address->sin_port = htons(PORT);
+    address->sin_port        = htons(PORT);
 }
 
 void bind_server_socket_to_port(int server_socket, struct sockaddr_in address) {
     //bind the socket to localhost port 8888
-    if (bind(server_socket, (struct sockaddr *)&address, sizeof(address))<0)
-    {
+    if (bind(server_socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
@@ -68,17 +68,17 @@ void bind_server_socket_to_port(int server_socket, struct sockaddr_in address) {
 
 void listen_on_socket(int master_socket) {
     if (listen(master_socket, MAX_CLIENTS) < 0) {
-          perror("Error while listening");
-          exit(EXIT_FAILURE);
+        perror("Error while listening");
+        exit(EXIT_FAILURE);
     }
 }
 
-void print_text(struct CollaborativeEditorServer *server) {
-    printf("Current text:\n");
-    for (int i=0; i < LINES_LIMIT; i++) {
-        printf("[%d] %s\n", i, server->lines[i]);
-    }
-}
+//void print_text(struct CollaborativeEditorServer *server) {
+//    printf("Current text:\n");
+//    for (int i = 0; i < LINES_LIMIT; i++) {
+//        printf("[%d] %s\n", i, server->lines[i]);
+//    }
+//}
 
 int reset_fd_set(struct CollaborativeEditorServer *server) {
     //Clear the socket set. On each event loop iteration the fd_set has to
@@ -91,8 +91,7 @@ int reset_fd_set(struct CollaborativeEditorServer *server) {
     int highest_file_descriptor = server->server_socket;
 
     //Add child sockets to set and determine highest file descriptor
-    for (int i = 0; i < server->num_of_client_sockets; i++)
-    {
+    for (int i = 0; i < server->num_of_client_sockets; i++) {
         int socket_descriptor = server->client_sockets[i];
         if (socket_descriptor == 0) {
             // Means that description has not been allocated yet
@@ -101,7 +100,7 @@ int reset_fd_set(struct CollaborativeEditorServer *server) {
         }
 
         FD_SET(socket_descriptor, &server->readingFileDescriptors);
-        if(socket_descriptor > highest_file_descriptor) {
+        if (socket_descriptor > highest_file_descriptor) {
             highest_file_descriptor = socket_descriptor;
         }
     }
@@ -114,19 +113,19 @@ void add_new_socket_to_empty_client_slot(
     int new_socket
 ) {
     for (int i = 0; i < server->num_of_client_sockets; i++) {
-        if(server->client_sockets[i] != 0) {
+        if (server->client_sockets[i] != 0) {
             continue;
         }
 
         server->client_sockets[i] = new_socket;
-        printf("Adding socket: %d to list of sockets at index: %d\n" , new_socket, i);
+        printf("Adding socket: %d to list of sockets at index: %d\n", new_socket, i);
         break;
     }
 }
 
 void send_message(message_t message, int socket) {
     size_t size = sizeof(message_t);
-    char* buffer = malloc(size);
+    char *buffer = malloc(size);
     memset(buffer, 0x00, size);
     memcpy(buffer, &message, size);
 
@@ -136,7 +135,7 @@ void send_message(message_t message, int socket) {
 }
 
 void broadcast_message(struct CollaborativeEditorServer *server, message_t message, int owner_socket_id) {
-    for (int i=0; i < MAX_CLIENTS; i++) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
         int client_socket = server->client_sockets[i];
         if (client_socket == 0 || i == owner_socket_id) {
             continue;
@@ -147,12 +146,10 @@ void broadcast_message(struct CollaborativeEditorServer *server, message_t messa
 }
 
 void initial_synchronization(struct CollaborativeEditorServer *server, int clientSocket) {
-   
-
-    for (int i=0; i < LINES_LIMIT; i++) {
+    for (int i = 0; i < *server->text->linesNumber; i++) {
         message_t message;
         message.row = i;
-        strcpy(message.text, server->lines[i]);
+        strcpy(message.text, server->text->lines[i]);
         message.type = i == 0 ? LINE_MODIFIED : LINE_ADDED;
 
         send_message(message, clientSocket);
@@ -175,9 +172,9 @@ void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
 
     int new_socket, addrlen;
     if ((new_socket = accept(
-      server->server_socket, (struct sockaddr *) server->address,
-      (socklen_t*)&addrlen)) < 0
-    ) {
+        server->server_socket, (struct sockaddr *) server->address,
+        (socklen_t *) &addrlen)) < 0
+        ) {
         perror("Error while accepting client connection");
         return;
     }
@@ -187,10 +184,12 @@ void handle_server_socket_activity(struct CollaborativeEditorServer *server) {
 }
 
 void resolveIncomingMessageFromClient(const struct CollaborativeEditorServer *server, message_t *received_message) {
-
-    // TODO: zamiast tego trzeba zrobić obsługę MessageType, zeby dobrze zarządzać server->lines
-
-    strcpy(server->lines[received_message->row], received_message->text);
+    switch (received_message->type) {
+        case LINE_ADDED: textAddNewLine(server->text, received_message->row, received_message->text); break;
+        case LINE_REMOVED: textRemoveLine(server->text, received_message->row); break;
+        case LINE_MODIFIED:
+        default: textModifyLine(server->text, received_message->row, received_message->text); break;
+    }
 }
 
 void handle_client_socket_activity(
@@ -202,12 +201,12 @@ void handle_client_socket_activity(
     }
 
     int size = sizeof(message_t);
-    char* buffer = malloc(size);
+    char *buffer = malloc(size);
     memset(buffer, 0x00, size);
 
     int valread, addrlen;
     if ((valread = read(client_socket, buffer, size)) == 0) {
-        getpeername(client_socket, (struct sockaddr *) server->address, (socklen_t*)&addrlen);
+        getpeername(client_socket, (struct sockaddr *) server->address, (socklen_t *) &addrlen);
         close(client_socket);
         server->client_sockets[socket_index] = 0;
         printf("Disconnected socket %d at index %d\n", client_socket, socket_index);
@@ -224,7 +223,7 @@ void handle_client_socket_activity(
     if (received_message.type == 0) return;
 
     printf("Received message from socket %d at index %d - [row: %d, type: %d, text: %s]\n",
-            client_socket, socket_index, received_message.row, received_message.type, received_message.text);
+           client_socket, socket_index, received_message.row, received_message.type, received_message.text);
 
     resolveIncomingMessageFromClient(server, &received_message);
 
@@ -242,12 +241,12 @@ void handle_client_sockets_activity(struct CollaborativeEditorServer *server) {
 
 
 void event_loop(struct CollaborativeEditorServer *server) {
-    while(TRUE) {
+    while (TRUE) {
         int highest_file_descriptor = reset_fd_set(server);
 
         int numberOfReadyDescriptors = select(
 //            highest_file_descriptor + 1 , &server->readingFileDescriptors , NULL , NULL , NULL
-            server->num_of_client_sockets + 1 , &server->readingFileDescriptors , NULL , NULL , NULL
+            server->num_of_client_sockets + 1, &server->readingFileDescriptors, NULL, NULL, NULL
         );
 
         if (numberOfReadyDescriptors < 0) {
@@ -260,25 +259,21 @@ void event_loop(struct CollaborativeEditorServer *server) {
 }
 
 void initialize_text_content(struct CollaborativeEditorServer *server) {
-    for (int i=0; i < LINES_LIMIT; i++) {
-        memset(server->lines[i], ' ', LINE_MAX_LENGTH);
-        server->lines[i][LINE_MAX_LENGTH - 1] = '\0';
-    }
+    server->text = textInit();
 
-    strcpy(server->lines[0], ".");
-    strcpy(server->lines[1], "Lorem Ipsum jest tekstem stosowanym jako przykładowy");
-    strcpy(server->lines[2], "wypełniacz w przemyśle poligraficznym. Został po raz");
-    strcpy(server->lines[3], "pierwszy użyty w XV w. przez nieznanego drukarza do");
-    strcpy(server->lines[4], "wypełnienia tekstem próbnej książki. Pięć wieków");
-    strcpy(server->lines[5], "później zaczął być używany przemyśle elektronicznym,");
-    strcpy(server->lines[6], "pozostając praktycznie niezmienionym. Spopularyzował");
-    strcpy(server->lines[7], "się w latach 60. XX w. wraz z publikacją arkuszy");
-    strcpy(server->lines[8], "Letrasetu, zawierających fragmenty Lorem Ipsum, a");
-    strcpy(server->lines[9], "ostatnio z zawierającym różne wersje Lorem Ipsum oprogramowaniem");
+    textModifyLine(server->text, 0, ".");
+    textAddNewLine(server->text, 1, "Lorem Ipsum jest tekstem stosowanym jako przykładowy");
+    textAddNewLine(server->text, 2, "wypełniacz w przemyśle poligraficznym. Został po raz");
+    textAddNewLine(server->text, 3, "pierwszy użyty w XV w. przez nieznanego drukarza do");
+    textAddNewLine(server->text, 4, "wypełnienia tekstem próbnej książki. Pięć wieków");
+    textAddNewLine(server->text, 5, "później zaczął być używany przemyśle elektronicznym,");
+    textAddNewLine(server->text, 6, "pozostając praktycznie niezmienionym. Spopularyzował");
+    textAddNewLine(server->text, 7, "się w latach 60. XX w. wraz z publikacją arkuszy");
+    textAddNewLine(server->text, 8, "Letrasetu, zawierających fragmenty Lorem Ipsum, a");
+    textAddNewLine(server->text, 9, "ostatnio z zawierającym różne wersje Lorem Ipsum oprogramowaniem");
 }
 
-int main(int argc , char *argv[])
-{
+int main(int argc, char *argv[]) {
     struct sockaddr_in address;
     initialize_address_structure(&address);
 
@@ -286,9 +281,9 @@ int main(int argc , char *argv[])
     initialize_client_sockets(client_sockets, MAX_CLIENTS);
 
     struct CollaborativeEditorServer server;
-    server.server_socket = create_server_socket();
-    server.address = &address;
-    server.client_sockets = client_sockets;
+    server.server_socket         = create_server_socket();
+    server.address               = &address;
+    server.client_sockets        = client_sockets;
     server.num_of_client_sockets = MAX_CLIENTS;
 
     initialize_text_content(&server);
