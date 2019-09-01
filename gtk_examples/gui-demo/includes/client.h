@@ -26,8 +26,8 @@
 #define FALSE              0
 
 /* Pass in 1 parameter which is either the */
-/* address or host name of the server, or  */
-/* set the server name in the #define      */
+/* address or host name of the app, or  */
+/* set the app name in the #define      */
 /* SERVER_NAME.                             */
 int socketClient(char server_name[10], int server_port, gchar *message) {
     /***********************************************************************/
@@ -58,7 +58,7 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
         }
 
         /********************************************************************/
-        /* If an argument was passed in, use this as the server, otherwise  */
+        /* If an argument was passed in, use this as the app, otherwise  */
         /* use the #define that is located at the top of this program.      */
         /********************************************************************/
 
@@ -70,11 +70,11 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
         serveraddr.sin_addr.s_addr = inet_addr(server);
         if (serveraddr.sin_addr.s_addr == (unsigned long) INADDR_NONE) {
             /*****************************************************************/
-            /* The server string that was passed into the inet_addr()        */
+            /* The app string that was passed into the inet_addr()        */
             /* function was not a dotted decimal IP address.  It must        */
-            /* therefore be the hostname of the server.  Use the             */
+            /* therefore be the hostname of the app.  Use the             */
             /* gethostbyname() function to retrieve the IP address of the    */
-            /* server.                                                       */
+            /* app.                                                       */
             /*****************************************************************/
 
             hostp = gethostbyname(server);
@@ -91,7 +91,7 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
 
         /********************************************************************/
         /* Use the connect() function to establish a connection to the      */
-        /* server.                                                          */
+        /* app.                                                          */
         /********************************************************************/
         rc = connect(sd, (struct sockaddr *) &serveraddr, sizeof(serveraddr));
         if (rc < 0) {
@@ -100,7 +100,7 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
         }
 
         /********************************************************************/
-        /* Send 250 bytes of a's to the server                              */
+        /* Send 250 bytes of a's to the app                              */
         /********************************************************************/
 //        memset(buffer, 'a', sizeof(buffer));
         char buffer[BUFFER_LENGTH];
@@ -113,13 +113,13 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
         }
 
         /********************************************************************/
-        /* In this example we know that the server is going to respond with */
+        /* In this example we know that the app is going to respond with */
         /* the same 250 bytes that we just sent.  Since we know that 250    */
         /* bytes are going to be sent back to us, we could use the          */
         /* SO_RCVLOWAT socket option and then issue a single recv() and     */
         /* retrieve all of the data.                                        */
         /*                                                                  */
-        /* The use of SO_RCVLOWAT is already illustrated in the server      */
+        /* The use of SO_RCVLOWAT is already illustrated in the app      */
         /* side of this example, so we will do something different here.    */
         /* The 250 bytes of the data may arrive in separate packets,        */
         /* therefore we will issue recv() over and over again until all     */
@@ -133,7 +133,7 @@ int socketClient(char server_name[10], int server_port, gchar *message) {
 //                perror("recv() failed");
 //                break;
 //            } else if (rc == 0) {
-//                printf("The server closed the connection\n");
+//                printf("The app closed the connection\n");
 //                break;
 //            }
 //
